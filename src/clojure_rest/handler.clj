@@ -1,11 +1,24 @@
 (ns clojure-rest.handler
-  (:require [compojure.core :refer :all]
-            [compojure.route :as route]
-            [ring.middleware.defaults :refer [wrap-defaults site-defaults]]))
+      (:import com.mchange.v2.c3p0.ComboPooledDataSource)
+      (:use compojure.core)
+      (:use cheshire.core)
+      (:use ring.util.response)
+      (:require [compojure.handler :as handler]
+                [ring.middleware.json :as middleware]
+                [clojure.java.jdbc :as sql]
+                [compojure.route :as route]))
 
 (defroutes app-routes
-  (GET "/" [] "Hello World")
+  (context "/documents" [] (defroutes documents-routes
+    (GET "/" [] (get-all-documents))
+    (POST "/" {body :body} (create-new-document))
+    (context "/:id" [id] (defroutes documents-routes
+      (GET "/" [] (get-document id))
+      (PUT "/" {body :body} (update-document id body))
+      (DELETE "/" [] (delete-document id))))))
   (route/not-found "Not Found"))
 
 (def app
-  (wrap-defaults app-routes site-defaults))
+  (-> (handler/api app-routes)
+    (middleware/wrap-json-body)
+    (middleware/wrap-json-response)))
